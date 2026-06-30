@@ -28,12 +28,13 @@ async function writeBoard(board) {
   try {
     await put(FILE_NAME, JSON.stringify(board, null, 2), {
       access: "public",
+      addRandomSuffix: false,
       allowOverwrite: true,
       contentType: "application/json"
     });
-    return true;
-  } catch {
-    return false;
+    return { saved: true, error: null };
+  } catch (error) {
+    return { saved: false, error: error?.message || "Blob write failed" };
   }
 }
 
@@ -67,7 +68,10 @@ export default async function handler(req, res) {
     }
 
     const board = await readBoard();
-    return res.status(200).json({ entries: board[mode] || [] });
+    return res.status(200).json({
+      entries: board[mode] || [],
+      debug: req.query.debug === "1" ? { hasBlobToken: Boolean(process.env.BLOB_READ_WRITE_TOKEN) } : undefined
+    });
   }
 
   if (req.method === "POST") {
@@ -122,9 +126,14 @@ export default async function handler(req, res) {
       .sort((a, b) => b.bestScore - a.bestScore || b.bestLevel - a.bestLevel)
       .slice(0, 10);
 
-    const saved = changed ? await writeBoard(board) : true;
+    const writeResult = changed ? await writeBoard(board) : { saved: true, error: null };
 
-    return res.status(200).json({ ok: true, saved, entries: board[entry.mode] });
+    return res.status(200).json({
+      ok: true,
+      saved: writeResult.saved,
+      saveError: writeResult.error || undefined,
+      entries: board[entry.mode]
+    });
   }
 
   return res.status(405).json({ error: "Method not allowed" });
