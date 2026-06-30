@@ -25,11 +25,16 @@ async function readBoard() {
 }
 
 async function writeBoard(board) {
-  await put(FILE_NAME, JSON.stringify(board, null, 2), {
-    access: "public",
-    allowOverwrite: true,
-    contentType: "application/json"
-  });
+  try {
+    await put(FILE_NAME, JSON.stringify(board, null, 2), {
+      access: "public",
+      allowOverwrite: true,
+      contentType: "application/json"
+    });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function cleanEntry(payload) {
@@ -117,11 +122,9 @@ export default async function handler(req, res) {
       .sort((a, b) => b.bestScore - a.bestScore || b.bestLevel - a.bestLevel)
       .slice(0, 10);
 
-    if (changed) {
-      await writeBoard(board);
-    }
+    const saved = changed ? await writeBoard(board) : true;
 
-    return res.status(200).json({ ok: true, entries: board[entry.mode] });
+    return res.status(200).json({ ok: true, saved, entries: board[entry.mode] });
   }
 
   return res.status(405).json({ error: "Method not allowed" });
