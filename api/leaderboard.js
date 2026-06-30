@@ -75,6 +75,7 @@ export default async function handler(req, res) {
     const existing = entries.find(
       (item) => item.userName.toLowerCase() === entry.userName.toLowerCase()
     );
+    let changed = false;
 
     if (existing) {
       const isBetter =
@@ -85,21 +86,36 @@ export default async function handler(req, res) {
         existing.bestScore = entry.bestScore;
         existing.bestLevel = entry.bestLevel;
         existing.updatedAt = Date.now();
+        changed = true;
       }
     } else {
-      entries.push({
-        userName: entry.userName,
-        bestScore: entry.bestScore,
-        bestLevel: entry.bestLevel,
-        updatedAt: Date.now()
-      });
+      const isTop10Candidate =
+        entries.length < 10 ||
+        entries.some(
+          (item) =>
+            entry.bestScore > item.bestScore ||
+            (entry.bestScore === item.bestScore && entry.bestLevel > item.bestLevel)
+        );
+
+      if (isTop10Candidate) {
+        entries.push({
+          userName: entry.userName,
+          bestScore: entry.bestScore,
+          bestLevel: entry.bestLevel,
+          updatedAt: Date.now()
+        });
+        changed = true;
+      }
     }
 
     board[entry.mode] = entries
       .sort((a, b) => b.bestScore - a.bestScore || b.bestLevel - a.bestLevel)
       .slice(0, 10);
 
-    await writeBoard(board);
+    if (changed) {
+      await writeBoard(board);
+    }
+
     return res.status(200).json({ ok: true, entries: board[entry.mode] });
   }
 
