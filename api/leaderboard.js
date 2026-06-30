@@ -1,4 +1,4 @@
-import { list, put } from "@vercel/blob";
+import { get, put } from "@vercel/blob";
 
 const FILE_NAME = "leaderboard.json";
 const MODES = ["easy", "normal", "hard", "hell"];
@@ -11,14 +11,11 @@ const EMPTY_BOARD = {
 
 async function readBoard() {
   try {
-    const blobs = await list({ prefix: FILE_NAME });
-    const file = blobs.blobs.find((blob) => blob.pathname === FILE_NAME);
-    if (!file) return { ...EMPTY_BOARD };
+    const result = await get(FILE_NAME, { access: "private" });
+    if (!result?.stream) return { ...EMPTY_BOARD };
 
-    const response = await fetch(file.url, { cache: "no-store" });
-    if (!response.ok) return { ...EMPTY_BOARD };
-
-    return { ...EMPTY_BOARD, ...(await response.json()) };
+    const text = await new Response(result.stream).text();
+    return { ...EMPTY_BOARD, ...JSON.parse(text) };
   } catch {
     return { ...EMPTY_BOARD };
   }
@@ -27,7 +24,7 @@ async function readBoard() {
 async function writeBoard(board) {
   try {
     await put(FILE_NAME, JSON.stringify(board, null, 2), {
-      access: "public",
+      access: "private",
       addRandomSuffix: false,
       allowOverwrite: true,
       contentType: "application/json"
@@ -70,7 +67,14 @@ export default async function handler(req, res) {
     const board = await readBoard();
     return res.status(200).json({
       entries: board[mode] || [],
-      debug: req.query.debug === "1" ? { hasBlobToken: Boolean(process.env.BLOB_READ_WRITE_TOKEN) } : undefined
+      debug:
+        req.query.debug === "1"
+          ? {
+              hasBlobToken: Boolean(process.env.BLOB_READ_WRITE_TOKEN),
+              hasBlobStoreId: Boolean(process.env.BLOB_STORE_ID),
+              hasOidcToken: Boolean(process.env.VERCEL_OIDC_TOKEN)
+            }
+          : undefined
     });
   }
 
