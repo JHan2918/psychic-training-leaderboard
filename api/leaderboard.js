@@ -36,6 +36,7 @@ function cleanEntry(payload) {
   return {
     mode: String(payload.mode || ""),
     userName: String(payload.userName || "Player").trim().slice(0, 20) || "Player",
+    country: String(payload.country || "--").trim().slice(0, 4).toUpperCase() || "--",
     bestLevel: Math.max(1, Number(payload.bestLevel || 1)),
     bestScore: Math.max(0, Number(payload.bestScore || 0))
   };
@@ -85,6 +86,8 @@ export default async function handler(req, res) {
       if (isBetter) {
         existing.bestScore = entry.bestScore;
         existing.bestLevel = entry.bestLevel;
+        existing.country = entry.country;
+        existing.mode = entry.mode;
         existing.updatedAt = Date.now();
         changed = true;
       }
@@ -100,6 +103,8 @@ export default async function handler(req, res) {
       if (isTop10Candidate) {
         entries.push({
           userName: entry.userName,
+          mode: entry.mode,
+          country: entry.country,
           bestScore: entry.bestScore,
           bestLevel: entry.bestLevel,
           updatedAt: Date.now()
